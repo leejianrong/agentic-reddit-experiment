@@ -28,14 +28,22 @@ Then fill in `.env`:
 
 1. Create a Reddit **script** app at <https://reddit.com/prefs/apps> (on the
    account the bot should post as) and set `REDDIT_CLIENT_ID` /
-   `REDDIT_CLIENT_SECRET` from it, plus a `REDDIT_USER_AGENT`.
+   `REDDIT_CLIENT_SECRET` from it, plus a `REDDIT_USER_AGENT`. As of late
+   2025, new app creation is gated behind Reddit's [Responsible Builder
+   Policy](https://support.reddithelp.com/hc/en-us/articles/42728983564564-Responsible-Builder-Policy)
+   and may require manual review — this step can't be skipped or worked
+   around, but everything else here is fully usable in dry-run without it.
+   When creating the app, set **redirect uri** to exactly
+   `http://localhost:8765/callback` (required for step 2) and leave **about
+   url** blank.
 2. Run `npm run reddit:authorize` — it prints a URL to open in your browser,
    then prints a `REDDIT_REFRESH_TOKEN` to paste into `.env` once you approve.
 3. Run `npm run reddit:smoke-test` to confirm read access works (add
    `-- --write` once you're ready to confirm a real throwaway comment posts
    to r/test).
 4. Fill in `TELEGRAM_BOT_TOKEN` (via [@BotFather](https://t.me/BotFather)),
-   `TELEGRAM_CHAT_ID`, and `ANTHROPIC_API_KEY`.
+   `TELEGRAM_CHAT_ID`, and `OPENROUTER_API_KEY` (from
+   [openrouter.ai/keys](https://openrouter.ai/keys) — ADR-0008).
 
 ## Running in a container
 

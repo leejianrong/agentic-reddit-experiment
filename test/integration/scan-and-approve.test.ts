@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../../src/config.js';
+import type { ChatMessage, LlmClient } from '../../src/llm/client.js';
 import { buildApp } from '../../src/mastra/index.js';
 import { RedditClient } from '../../src/reddit/client.js';
 import type { TelegramClientLike } from '../../src/telegram/client.js';
@@ -76,14 +77,15 @@ function fakeRedditFetch(): typeof fetch {
   }) as unknown as typeof fetch;
 }
 
-function fakeAnthropic(draftText: string) {
+function fakeLlm(draftText: string): LlmClient {
   return {
-    messages: {
-      parse: vi.fn().mockResolvedValue({
-        parsed_output: { relevant: true, angle: 'Explain exponential backoff with jitter' },
-      }),
-      create: vi.fn().mockResolvedValue({ content: [{ type: 'text', text: draftText }] }),
-    },
+    chatCompletion: vi.fn(async (_model: string, messages: ChatMessage[]) => {
+      const systemPrompt = messages[0]?.content ?? '';
+      if (systemPrompt.includes('JSON object')) {
+        return JSON.stringify({ relevant: true, angle: 'Explain exponential backoff with jitter' });
+      }
+      return draftText;
+    }),
   };
 }
 
@@ -119,7 +121,7 @@ async function setUpScannedApp(dbPath: string, draftText = DRAFT_TEXT) {
     REDDIT_USER_AGENT: 'test-agent/0.0.0',
     TELEGRAM_BOT_TOKEN: 'bot-token',
     TELEGRAM_CHAT_ID: 'chat-1',
-    ANTHROPIC_API_KEY: 'anthropic-key',
+    OPENROUTER_API_KEY: 'openrouter-key',
     DATABASE_URL: `file:${dbPath}`,
     DRY_RUN: 'true',
   });
@@ -133,10 +135,10 @@ async function setUpScannedApp(dbPath: string, draftText = DRAFT_TEXT) {
     },
     fakeRedditFetch(),
   );
-  const anthropic = fakeAnthropic(draftText);
+  const llm = fakeLlm(draftText);
   const telegramClient = fakeTelegramClient();
 
-  const app = await buildApp(config, { redditClient, anthropic, telegramClient });
+  const app = await buildApp(config, { redditClient, llm, telegramClient });
 
   const scanRun = await app.mastra.getWorkflow('scan-subreddits').createRun();
   const scanResult = await scanRun.start({ inputData: {} });

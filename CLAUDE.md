@@ -3,19 +3,21 @@
 ## Build status
 
 SLICES.md V1 is implemented end to end, in dry-run: Reddit client (ADR-0005),
-LibSQL app tables (ADR-0006), Claude scoring/drafting, the Telegram
-approve/reject/edit adapter (ADR-0002), and both Mastra workflows
+LibSQL app tables (ADR-0006), scoring/drafting via OpenRouter (ADR-0008,
+prompt-based JSON parsing — not a native structured-outputs feature), the
+Telegram approve/reject/edit adapter (ADR-0002), and both Mastra workflows
 (scan-subreddits, draft-approval with suspend/resume per ADR-0001), wired
 together in `src/mastra/index.ts` and booted from `src/index.ts`. Covered by
 an integration test that runs the whole scan→draft→Telegram-approve→dry-run
-loop against a real Mastra+LibSQL runtime with faked Reddit/Telegram/Claude.
+loop against a real Mastra+LibSQL runtime with faked Reddit/Telegram/LLM.
 Containerized (ADR-0007) and confirmed running in Docker.
 
 Not yet done: live publishing (still forced to dry-run — flipping it on is
-SLICES.md V2, and needs real Reddit/Telegram/Anthropic credentials which
-haven't been created yet), new top-level posts (V3), Slack (V4). Trust the
-code over this file, and trust `PLAN.md` / `SLICES.md` over any assumption
-about what's built.
+SLICES.md V2, and needs real Reddit/Telegram/OpenRouter credentials; Reddit
+specifically is currently blocked on Reddit's Responsible Builder Policy
+manual-review process, see README.md Setup step 1), new top-level posts
+(V3), Slack (V4). Trust the code over this file, and trust `PLAN.md` /
+`SLICES.md` over any assumption about what's built.
 
 ## Commands
 

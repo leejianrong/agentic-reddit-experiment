@@ -1,14 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AnthropicMessagesClient } from '../../src/llm/client.js';
+import type { LlmClient } from '../../src/llm/client.js';
 import { draftContent, redraftContent } from '../../src/llm/draft.js';
 
-function fakeClient(text: string): AnthropicMessagesClient {
-  return {
-    messages: {
-      create: vi.fn().mockResolvedValue({ content: [{ type: 'text', text }] }),
-      parse: vi.fn(),
-    },
-  };
+function fakeClient(text: string): LlmClient {
+  return { chatCompletion: vi.fn().mockResolvedValue(text) };
 }
 
 const context = {
@@ -21,23 +16,12 @@ const context = {
 };
 
 describe('draftContent', () => {
-  it('extracts the text block from the response', async () => {
-    const client = fakeClient('Use argparse subparsers for this.');
+  it('returns the trimmed completion text', async () => {
+    const client = fakeClient('  Use argparse subparsers for this.  \n');
 
-    const text = await draftContent(client, 'claude-sonnet-5', context);
+    const text = await draftContent(client, 'deepseek/deepseek-v4-flash', context);
 
     expect(text).toBe('Use argparse subparsers for this.');
-  });
-
-  it('throws when the response has no text block', async () => {
-    const client: AnthropicMessagesClient = {
-      messages: {
-        create: vi.fn().mockResolvedValue({ content: [] }),
-        parse: vi.fn(),
-      },
-    };
-
-    await expect(draftContent(client, 'claude-sonnet-5', context)).rejects.toThrow('no text block');
   });
 });
 
@@ -47,15 +31,20 @@ describe('redraftContent', () => {
 
     const text = await redraftContent(
       client,
-      'claude-sonnet-5',
+      'deepseek/deepseek-v4-flash',
       context,
       'Original text.',
       'make it shorter',
     );
 
     expect(text).toBe('Revised text.');
-    const call = vi.mocked(client.messages.create).mock.calls[0]?.[0];
-    expect(call?.messages).toHaveLength(3);
-    expect(call?.messages[1]).toMatchObject({ role: 'assistant', content: 'Original text.' });
+    const call = vi.mocked(client.chatCompletion).mock.calls[0];
+    const messages = call?.[1];
+    expect(messages).toHaveLength(4);
+    expect(messages?.[2]).toMatchObject({ role: 'assistant', content: 'Original text.' });
+    expect(messages?.[3]).toMatchObject({
+      role: 'user',
+      content: expect.stringContaining('make it shorter'),
+    });
   });
 });

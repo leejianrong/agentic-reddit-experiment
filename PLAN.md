@@ -117,7 +117,7 @@ only job is to be useful and sound like a knowledgeable person in the room.
 - Subreddit list, per-subreddit flags, persona voice, and rate caps live in
   one editable config file (not hardcoded, not a database table) — this is
   the surface Jian tunes without touching code.
-- Secrets (Reddit OAuth credentials, Telegram bot token, Anthropic API key)
+- Secrets (Reddit OAuth credentials, Telegram bot token, OpenRouter API key)
   live in `.env`, gitignored, never written to the audit log.
 - `DRY_RUN` and a kill-switch flag are environment/config toggles checked
   immediately before the publish step, not deep in call chains — one place
@@ -126,7 +126,7 @@ only job is to be useful and sound like a knowledgeable person in the room.
   and free to use; only its separate `ee/`-namespaced enterprise features
   need a license, and this project doesn't touch those. Requires Node.js
   22.18+ and runs as a standalone process — no enterprise dependency, no
-  hosted-service dependency beyond the Reddit/Telegram/Anthropic APIs.
+  hosted-service dependency beyond the Reddit/Telegram/OpenRouter APIs.
 
 ## Testing approach
 
@@ -145,10 +145,10 @@ only job is to be useful and sound like a knowledgeable person in the room.
 
 | ID | Assumed | Cost if wrong |
 |----|---------|---------------|
-| Q5 | LLM = Claude via Anthropic API | Low — Mastra abstracts the model call; swapping providers is a config change |
+| Q5 | ~~LLM = Claude via Anthropic API~~ — **superseded**: OpenRouter, cheap open-weight models (ADR-0008) | Low — model/provider is a config string, not a code change |
 | Q6 | Single shared LibSQL db for Mastra snapshots + app tables | Low–Medium — splitting storage later means one migration, not a redesign |
 | Q7 | Custom thin Reddit REST client (fetch + zod) instead of snoowrap | Medium — hand-rolled client needs its own retry/backoff correctness, no library to lean on |
-| Q8 | node-cron scan scheduler + Telegram long-polling, no public server | Low — both are swappable without touching the workflow logic |
+| Q8 | Plain `setInterval` scan loop (not Mastra's native `schedule` field, not node-cron) + Telegram long-polling, no public server | Low — both are swappable without touching the workflow logic |
 | Q9 | Starter subreddit list is a seed the user edits, not a fixed set | Low — it's a config file |
 | Q10 | Default rate caps (e.g. 3 comments/day, 1 post/3 days) and DRY_RUN=true by default | Medium — too strict just delays feedback; too loose is the actual risk this guards against |
 | Q11 | Single approver, no concurrent-writer conflict; freshness recheck is the only staleness guard needed | Medium — if Jian ever adds a second approver, needs a real conflict rule |
@@ -165,11 +165,14 @@ only job is to be useful and sound like a knowledgeable person in the room.
 
 ## Open risks
 
-- **Reddit OAuth app registration friction.** Some current sources describe
-  a gated "Responsible Builder Policy" for Reddit API access; it's unclear
-  whether that applies to personal OAuth "script" apps (used here) or only
-  to commercial/data-licensing access. Slice 1 confronts this first, before
-  anything else is built on top of it.
+- **Reddit OAuth app registration is currently blocked.** Confirmed, not
+  hypothetical: as of 2026-09-19, `reddit.com/prefs/apps` gates new app
+  creation behind Reddit's Responsible Builder Policy, and Jian hit this
+  wall directly attempting to register a script app. The rest of the system
+  (scan/draft/Telegram-approval loop) is fully built and tested in dry-run
+  without live Reddit access; only the actual read/publish calls (and
+  SLICES.md V1 step 7's real-subreddit soak test) are blocked pending manual
+  review. See README.md Setup step 1.
 - **Opportunity quality.** The LLM's judgment of "this thread is a good fit
   for a genuinely helpful reply" may be too eager or too generic to actually
   read as expert-level. The dry-run soak period in Slice 1/2 is where this

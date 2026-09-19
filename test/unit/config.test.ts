@@ -8,7 +8,7 @@ const validEnv = {
   REDDIT_USER_AGENT: 'agentic-reddit-experiment/0.0.0',
   TELEGRAM_BOT_TOKEN: 'bot-token',
   TELEGRAM_CHAT_ID: '12345',
-  ANTHROPIC_API_KEY: 'anthropic-key',
+  OPENROUTER_API_KEY: 'openrouter-key',
 };
 
 describe('loadConfig', () => {

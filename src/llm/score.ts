@@ -1,7 +1,7 @@
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import type { RedditPost } from '../reddit/types.js';
-import type { AnthropicMessagesClient } from './client.js';
+import type { LlmClient } from './client.js';
+import { extractJsonObject } from './json.js';
 
 const scoreResultSchema = z.object({
   relevant: z.boolean(),
@@ -16,18 +16,21 @@ export interface ScoreCandidateInput {
 }
 
 export async function scoreCandidate(
-  client: AnthropicMessagesClient,
+  client: LlmClient,
   model: string,
   input: ScoreCandidateInput,
 ): Promise<ScoreResult> {
-  const message = await client.messages.parse({
+  const raw = await client.chatCompletion(
     model,
-    max_tokens: 300,
-    system: buildSystemPrompt(input.persona),
-    messages: [{ role: 'user', content: buildUserPrompt(input) }],
-    output_config: { format: zodOutputFormat(scoreResultSchema) },
-  });
-  return message.parsed_output ?? { relevant: false, angle: '' };
+    [
+      { role: 'system', content: buildSystemPrompt(input.persona) },
+      { role: 'user', content: buildUserPrompt(input) },
+    ],
+    300,
+  );
+
+  const parsed = scoreResultSchema.safeParse(extractJsonObject(raw));
+  return parsed.success ? parsed.data : { relevant: false, angle: '' };
 }
 
 function buildSystemPrompt(persona: string): string {
@@ -39,6 +42,9 @@ function buildSystemPrompt(persona: string): string {
     'non-promotional reply would add real value and read as expert, not generic.',
     '\nBe selective: most threads are not worth a reply. Only mark something relevant if a ',
     'knowledgeable person would genuinely have something specific and useful to add.',
+    '\nReply with ONLY a JSON object, no other text, no markdown formatting: ',
+    '{"relevant": boolean, "angle": string}. "angle" is a one-sentence description of what a ',
+    'genuinely useful reply would cover, or an empty string if not relevant.',
   ].join('');
 }
 

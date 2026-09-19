@@ -7,7 +7,7 @@ import {
   insertPostingRecord,
   updateDraft,
 } from '../../db/repository.js';
-import type { AnthropicMessagesClient } from '../../llm/client.js';
+import type { LlmClient } from '../../llm/client.js';
 import { draftContent, redraftContent } from '../../llm/draft.js';
 import type { RedditClient } from '../../reddit/client.js';
 import type { DraftNotifier } from '../../workflow-types.js';
@@ -19,7 +19,7 @@ export interface RateCaps {
 
 export interface DraftApprovalDeps {
   db: Client;
-  anthropic: AnthropicMessagesClient;
+  llm: LlmClient;
   draftModel: string;
   persona: string;
   notifier: DraftNotifier;
@@ -81,7 +81,7 @@ export function createDraftApprovalWorkflow(deps: DraftApprovalDeps) {
       };
 
       if (!resumeData) {
-        const text = await draftContent(deps.anthropic, deps.draftModel, context);
+        const text = await draftContent(deps.llm, deps.draftModel, context);
         const draftId = crypto.randomUUID();
         await insertDraft(deps.db, {
           id: draftId,
@@ -118,7 +118,7 @@ export function createDraftApprovalWorkflow(deps: DraftApprovalDeps) {
       }
 
       const newText = await redraftContent(
-        deps.anthropic,
+        deps.llm,
         deps.draftModel,
         context,
         suspendData.text,
