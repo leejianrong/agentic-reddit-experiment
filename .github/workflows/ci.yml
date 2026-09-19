@@ -43,6 +43,17 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci
+      - run: npm run test:integration
+
   build:
     runs-on: ubuntu-latest
     steps:
