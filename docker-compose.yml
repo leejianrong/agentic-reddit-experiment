@@ -1,0 +1,10 @@
+services:
+  agent:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: file:/app/data/app.db
+    volumes:
+      - ./data:/app/data

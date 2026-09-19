@@ -30,6 +30,10 @@ end to end — safely, in dry-run, before any live posting exists at all.
    done, without calling Reddit's write endpoint.
 7. Point the scan at 2-3 subreddits from the starter list (Q9) and let it
    run for real, in dry-run, so Jian can review actual drafts on Telegram.
+8. Containerize the app (ADR-0007): multi-stage Dockerfile, Compose file
+   bind-mounting `./data` for the LibSQL file, CI job that builds the image
+   on every push. Deploying it to an actual droplet is a later, separate
+   step once one is provisioned.
 
 **Demo:** the agent finds a real thread on a real subreddit, drafts a
 comment, sends it to Jian on Telegram; Jian edits it, gets the re-drafted

@@ -154,7 +154,7 @@ only job is to be useful and sound like a knowledgeable person in the room.
 | Q11 | Single approver, no concurrent-writer conflict; freshness recheck is the only staleness guard needed | Medium — if Jian ever adds a second approver, needs a real conflict rule |
 | Q12 | Reddit fullname IDs (`t3_`/`t1_`) are the canonical identity for dedup and audit | Low — this is how Reddit itself identifies content |
 | Q13 | On any external-call failure: log, skip, never auto-retry a publish more than once | Medium — wrong here risks a duplicate post, which is the exact failure mode ADR-0003 exists to prevent |
-| Q14 | Single long-lived Node process; hosting (local vs VPS) left to Jian, no containers required for v1 | Low — deployment target doesn't affect the architecture |
+| Q14 | ~~Single long-lived Node process; hosting left to Jian, no containers required for v1~~ — **superseded**: containerized (Docker), target deployment is an always-on DigitalOcean droplet (ADR-0007) | Low — deployment target doesn't affect the workflow architecture, only the runtime packaging |
 | Q15 | Success = 100% approval-gated publishes (auditable), scan cycle under ~2 min for the starter list, no duplicate prompts for the same thread | Low — these are checks, not design constraints |
 | Q16 | Secrets via `.env`/gitignore; audit log stores content and Reddit IDs, never credentials | Low — standard practice |
 | Q17 | Config/schema versioning deferred until an actual shape change is needed | Low — v1 schema is small |

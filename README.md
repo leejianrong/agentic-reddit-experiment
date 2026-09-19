@@ -23,3 +23,15 @@ cp .env.example .env   # fill in Reddit/Telegram/Anthropic credentials
 git config core.hooksPath .githooks
 npm run check
 ```
+
+## Running in a container
+
+Target deployment is an always-on host (e.g. a DigitalOcean droplet) via
+Docker Compose (ADR-0007). The database file lives on the host at `./data`,
+outside the container, so it survives rebuilds.
+
+```sh
+cp .env.example .env   # fill in credentials on the host
+docker compose up -d --build
+docker compose logs -f
+```
