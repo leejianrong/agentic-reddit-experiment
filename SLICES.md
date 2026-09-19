@@ -40,7 +40,7 @@ comment, sends it to Jian on Telegram; Jian edits it, gets the re-drafted
 version, approves it, and the log shows a would-be publish with the approved
 text — with nothing actually posted to Reddit.
 
-**Rests on assumptions:** Q5 (Claude for drafting), Q7 (custom Reddit
+**Rests on assumptions:** Q5 (OpenRouter for drafting), Q7 (custom Reddit
 client), Q9 (starter subreddit list), Q10 (DRY_RUN default) — if Reddit
 registration (step 1) doesn't work as expected, this slice's build plan
 starting at step 3 is blocked until that's resolved.

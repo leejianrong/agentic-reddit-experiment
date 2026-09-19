@@ -4,14 +4,14 @@ import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
 import type { SubredditConfig } from '../../config/subreddits.js';
 import { insertOpportunity, isSeen, markSeen } from '../../db/repository.js';
-import type { AnthropicMessagesClient } from '../../llm/client.js';
+import type { LlmClient } from '../../llm/client.js';
 import { scoreCandidate } from '../../llm/score.js';
 import type { RedditClient } from '../../reddit/client.js';
 
 export interface ScanDeps {
   db: Client;
   redditClient: RedditClient;
-  anthropic: AnthropicMessagesClient;
+  llm: LlmClient;
   scoringModel: string;
   persona: string;
   subreddits: SubredditConfig[];
@@ -75,7 +75,7 @@ async function scanSubreddit(
     }
     await markSeen(deps.db, post.name, subreddit.name);
 
-    const score = await scoreCandidate(deps.anthropic, deps.scoringModel, {
+    const score = await scoreCandidate(deps.llm, deps.scoringModel, {
       subreddit: subreddit.name,
       post,
       persona: deps.persona,

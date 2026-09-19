@@ -1,21 +1,70 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { z } from 'zod';
+import { LlmApiError } from './errors.js';
 
-/** The slice of the Anthropic client this project actually calls — a DI seam so tests inject a fake. */
-export interface AnthropicMessagesClient {
-  messages: {
-    create: Anthropic['messages']['create'];
-    parse: Anthropic['messages']['parse'];
-  };
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
 }
 
-export function createAnthropicClient(apiKey: string): AnthropicMessagesClient {
-  return new Anthropic({ apiKey });
+/** DI seam: the one operation this project needs from an LLM provider. */
+export interface LlmClient {
+  chatCompletion(model: string, messages: ChatMessage[], maxTokens: number): Promise<string>;
 }
 
-export function extractText(message: Anthropic.Message): string {
-  const block = message.content.find((b): b is Anthropic.TextBlock => b.type === 'text');
-  if (!block) {
-    throw new Error('LLM response contained no text block');
+const chatCompletionResponseSchema = z.object({
+  choices: z.array(
+    z.object({
+      message: z.object({ content: z.string().nullable() }),
+    }),
+  ),
+});
+
+/**
+ * Thin client for OpenRouter's OpenAI-compatible chat completions API
+ * (https://openrouter.ai/api/v1/chat/completions). Model routing (DeepSeek,
+ * GLM, MiniMax, etc.) is just a `model` string — see SCORING_MODEL /
+ * DRAFTING_MODEL in .env.
+ */
+export class OpenRouterClient implements LlmClient {
+  constructor(
+    private readonly apiKey: string,
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {}
+
+  async chatCompletion(model: string, messages: ChatMessage[], maxTokens: number): Promise<string> {
+    const response = await this.fetchImpl('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model, messages, max_tokens: maxTokens }),
+    });
+    const body = await safeJson(response);
+    if (!response.ok) {
+      throw new LlmApiError(`OpenRouter request failed for model ${model}`, response.status, body);
+    }
+    const parsed = chatCompletionResponseSchema.parse(body);
+    const content = parsed.choices[0]?.message.content;
+    if (!content) {
+      throw new LlmApiError(
+        `OpenRouter response for ${model} had no content`,
+        response.status,
+        body,
+      );
+    }
+    return content;
   }
-  return block.text.trim();
+}
+
+export function createLlmClient(apiKey: string): LlmClient {
+  return new OpenRouterClient(apiKey);
+}
+
+async function safeJson(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return undefined;
+  }
 }

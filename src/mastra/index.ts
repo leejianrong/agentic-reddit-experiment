@@ -5,7 +5,7 @@ import { DEFAULT_PERSONA } from '../config/persona.js';
 import { SUBREDDITS } from '../config/subreddits.js';
 import type { AppConfig } from '../config.js';
 import { createDbClient, initSchema } from '../db/client.js';
-import { type AnthropicMessagesClient, createAnthropicClient } from '../llm/client.js';
+import { createLlmClient, type LlmClient } from '../llm/client.js';
 import { RedditClient } from '../reddit/client.js';
 import { TelegramApprovalAdapter } from '../telegram/adapter.js';
 import { TelegramClient, type TelegramClientLike } from '../telegram/client.js';
@@ -22,7 +22,7 @@ export interface AppRuntime {
 /** Test seam: override any of the network-facing clients instead of building them from config. */
 export interface BuildAppOverrides {
   redditClient?: RedditClient;
-  anthropic?: AnthropicMessagesClient;
+  llm?: LlmClient;
   telegramClient?: TelegramClientLike;
 }
 
@@ -43,7 +43,7 @@ export async function buildApp(
       refreshToken: config.REDDIT_REFRESH_TOKEN,
       userAgent: config.REDDIT_USER_AGENT,
     });
-  const anthropic = overrides.anthropic ?? createAnthropicClient(config.ANTHROPIC_API_KEY);
+  const llm = overrides.llm ?? createLlmClient(config.OPENROUTER_API_KEY);
   const telegramClient = overrides.telegramClient ?? new TelegramClient(config.TELEGRAM_BOT_TOKEN);
 
   // `mastra` isn't constructed until below, but the scan workflow and the
@@ -75,8 +75,8 @@ export async function buildApp(
 
   const draftApprovalWorkflow = createDraftApprovalWorkflow({
     db: appDb,
-    anthropic,
-    draftModel: config.ANTHROPIC_DRAFTING_MODEL,
+    llm,
+    draftModel: config.DRAFTING_MODEL,
     persona: DEFAULT_PERSONA,
     notifier: telegramAdapter,
     redditClient,
@@ -90,8 +90,8 @@ export async function buildApp(
   const scanWorkflow = createScanWorkflow({
     db: appDb,
     redditClient,
-    anthropic,
-    scoringModel: config.ANTHROPIC_SCORING_MODEL,
+    llm,
+    scoringModel: config.SCORING_MODEL,
     persona: DEFAULT_PERSONA,
     subreddits: SUBREDDITS,
     maxOpportunitiesPerCycle: config.MAX_OPPORTUNITIES_PER_CYCLE,

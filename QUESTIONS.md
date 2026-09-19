@@ -17,7 +17,7 @@ milestone).
 | Q3 | Should posts/comments carry a blanket AI-disclosure? | DECIDED | No blanket disclosure; per-subreddit compliance check instead | ADR-0004 |
 | Q4 | Should v1 support new top-level posts, or comments only first? | DECIDED | Both posts and comments from v1 | PLAN §Scope, SLICES V2/V3 |
 | Q4a | Is self-promotion in scope for v1 content? | DECIDED (user clarification, mid-session) | No — v1 is strictly non-promotional, expert-presence content; self-promotion is a deliberate, subtle, later addition | PLAN §Problem, §Scope, §Shape S2 |
-| Q5 | Which LLM powers drafting/scoring? | ASSUMED | Claude via Anthropic API | PLAN §Assumed defaults |
+| Q5 | Which LLM powers drafting/scoring? | DECIDED (superseded the earlier ASSUMED default) | OpenRouter (cheap open-weight models — DeepSeek by default, swappable per-model in config) | ADR-0008 |
 | Q6 | Where does app state live relative to Mastra's own workflow storage? | ASSUMED | One shared LibSQL database | ADR-0006 |
 | Q7 | Which Reddit API client library? | ASSUMED | Custom thin REST client (fetch + zod), not snoowrap | ADR-0005 |
 | Q8 | How are the scan loop and Telegram bot triggered — webhook/server or polling? | ASSUMED | node-cron scan scheduler + Telegram long-polling; no public server | PLAN §Assumed defaults |

@@ -1,14 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AnthropicMessagesClient } from '../../src/llm/client.js';
+import type { LlmClient } from '../../src/llm/client.js';
 import { scoreCandidate } from '../../src/llm/score.js';
 
-function fakeClient(parsedOutput: unknown): AnthropicMessagesClient {
-  return {
-    messages: {
-      parse: vi.fn().mockResolvedValue({ parsed_output: parsedOutput }),
-      create: vi.fn(),
-    },
-  };
+function fakeClient(responseText: string): LlmClient {
+  return { chatCompletion: vi.fn().mockResolvedValue(responseText) };
 }
 
 describe('scoreCandidate', () => {
@@ -27,9 +22,9 @@ describe('scoreCandidate', () => {
   };
 
   it('returns the parsed relevance decision', async () => {
-    const client = fakeClient({ relevant: true, angle: 'Explain tensor retention gotchas' });
+    const client = fakeClient('{"relevant": true, "angle": "Explain tensor retention gotchas"}');
 
-    const result = await scoreCandidate(client, 'claude-haiku-4-5-20251001', {
+    const result = await scoreCandidate(client, 'deepseek/deepseek-v4-flash', {
       subreddit: 'MachineLearning',
       post,
       persona: 'test persona',
@@ -38,10 +33,22 @@ describe('scoreCandidate', () => {
     expect(result).toEqual({ relevant: true, angle: 'Explain tensor retention gotchas' });
   });
 
-  it('defaults to not relevant when the model returns no parsed output', async () => {
-    const client = fakeClient(undefined);
+  it('extracts JSON even when wrapped in a markdown code fence', async () => {
+    const client = fakeClient('```json\n{"relevant": false, "angle": ""}\n```');
 
-    const result = await scoreCandidate(client, 'claude-haiku-4-5-20251001', {
+    const result = await scoreCandidate(client, 'deepseek/deepseek-v4-flash', {
+      subreddit: 'MachineLearning',
+      post,
+      persona: 'test persona',
+    });
+
+    expect(result).toEqual({ relevant: false, angle: '' });
+  });
+
+  it('defaults to not relevant when the model response is not valid JSON', async () => {
+    const client = fakeClient('Sure, I can help with that! Let me think...');
+
+    const result = await scoreCandidate(client, 'deepseek/deepseek-v4-flash', {
       subreddit: 'MachineLearning',
       post,
       persona: 'test persona',

@@ -1,5 +1,4 @@
-import type { AnthropicMessagesClient } from './client.js';
-import { extractText } from './client.js';
+import type { ChatMessage, LlmClient } from './client.js';
 
 export interface DraftContext {
   subreddit: string;
@@ -11,37 +10,36 @@ export interface DraftContext {
 }
 
 export async function draftContent(
-  client: AnthropicMessagesClient,
+  client: LlmClient,
   model: string,
   context: DraftContext,
 ): Promise<string> {
-  const message = await client.messages.create({
+  const text = await client.chatCompletion(
     model,
-    max_tokens: 600,
-    system: buildSystemPrompt(context.persona),
-    messages: [{ role: 'user', content: buildUserPrompt(context) }],
-  });
-  return extractText(message);
+    [
+      { role: 'system', content: buildSystemPrompt(context.persona) },
+      { role: 'user', content: buildUserPrompt(context) },
+    ],
+    600,
+  );
+  return text.trim();
 }
 
 export async function redraftContent(
-  client: AnthropicMessagesClient,
+  client: LlmClient,
   model: string,
   context: DraftContext,
   previousText: string,
   feedback: string,
 ): Promise<string> {
-  const message = await client.messages.create({
-    model,
-    max_tokens: 600,
-    system: buildSystemPrompt(context.persona),
-    messages: [
-      { role: 'user', content: buildUserPrompt(context) },
-      { role: 'assistant', content: previousText },
-      { role: 'user', content: `Please revise based on this feedback: ${feedback}` },
-    ],
-  });
-  return extractText(message);
+  const messages: ChatMessage[] = [
+    { role: 'system', content: buildSystemPrompt(context.persona) },
+    { role: 'user', content: buildUserPrompt(context) },
+    { role: 'assistant', content: previousText },
+    { role: 'user', content: `Please revise based on this feedback: ${feedback}` },
+  ];
+  const text = await client.chatCompletion(model, messages, 600);
+  return text.trim();
 }
 
 function buildSystemPrompt(persona: string): string {
