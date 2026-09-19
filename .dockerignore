@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+.mastra
+data
+.git
+.github
+.githooks
+*.log
+.env
+.env.*
+!.env.example
+docs
+*.md

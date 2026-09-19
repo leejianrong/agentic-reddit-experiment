@@ -26,7 +26,7 @@ milestone).
 | Q11 | How are concurrent writers / stale approvals handled? | ASSUMED | Single approver, no multi-writer conflict; freshness recheck at publish time is the only staleness guard needed | PLAN §Assumed defaults |
 | Q12 | What is the canonical identity for opportunities/dedup? | ASSUMED | Reddit fullname IDs (`t3_`/`t1_`) | PLAN §Assumed defaults |
 | Q13 | What happens on Reddit/Telegram/LLM API failure? | ASSUMED | Log and skip; at most one safe retry for transient network errors; never a silent duplicate publish | PLAN §Assumed defaults, SLICES V2 |
-| Q14 | Where does this run — local machine, VPS, containers? | ASSUMED | Single long-lived Node process; hosting choice left to Jian; no containers required for v1 | PLAN §Assumed defaults |
+| Q14 | Where does this run — local machine, VPS, containers? | DECIDED (superseded the earlier ASSUMED default) | Containerized (Docker); target is an always-on DigitalOcean droplet | ADR-0007, PLAN §Assumed defaults |
 | Q15 | How do we know v1 actually works? | ASSUMED | 100% approval-gated publishes (auditable), scan cycle under ~2 min for the starter list, no duplicate prompts for the same thread | PLAN §Assumed defaults |
 | Q16 | How are secrets handled? | ASSUMED | `.env` + gitignore; audit log stores content/IDs, never credentials | PLAN §Assumed defaults |
 | Q17 | Is config/schema versioning needed now? | DEFERRED | v1 schema is small; revisit if a real shape change is needed | n/a |
