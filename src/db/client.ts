@@ -32,13 +32,12 @@ export async function initSchema(db: Client): Promise<void> {
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )`,
-      `CREATE TABLE IF NOT EXISTS posting_records (
+      `CREATE TABLE IF NOT EXISTS draft_outcomes (
         id TEXT PRIMARY KEY,
         draft_id TEXT NOT NULL,
         outcome TEXT NOT NULL,
-        dry_run INTEGER NOT NULL,
-        reddit_fullname TEXT,
         detail TEXT,
+        warning TEXT,
         created_at INTEGER NOT NULL
       )`,
       `CREATE TABLE IF NOT EXISTS pending_approvals (

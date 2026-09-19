@@ -2,12 +2,11 @@ import type { Client } from '@libsql/client';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDbClient, initSchema } from '../../src/db/client.js';
 import {
-  countRealPublishesSince,
   deletePendingApproval,
   getPendingApproval,
   insertDraft,
+  insertDraftOutcome,
   insertOpportunity,
-  insertPostingRecord,
   isSeen,
   markSeen,
   savePendingApproval,
@@ -62,9 +61,9 @@ describe('db repository', () => {
     expect(row.rows[0]).toMatchObject({ text: 'edited draft', version: 2, status: 'pending' });
   });
 
-  it('counts only real, published records of the matching kind within the window', async () => {
+  it('records a draft outcome with detail and warning', async () => {
     await insertOpportunity(db, {
-      id: 'opp-comment',
+      id: 'opp-1',
       fullname: 't3_c',
       subreddit: 'python',
       kind: 'comment',
@@ -72,46 +71,31 @@ describe('db repository', () => {
       permalink: 'p',
       angle: 'a',
     });
-    await insertOpportunity(db, {
-      id: 'opp-post',
-      fullname: 't3_p',
-      subreddit: 'python',
-      kind: 'post',
-      title: 't',
-      permalink: 'p',
-      angle: 'a',
-    });
     await insertDraft(db, {
-      id: 'draft-comment',
-      opportunityId: 'opp-comment',
-      runId: 'run-c',
-      text: 'x',
-      version: 1,
-      status: 'approved',
-    });
-    await insertDraft(db, {
-      id: 'draft-post',
-      opportunityId: 'opp-post',
-      runId: 'run-p',
+      id: 'draft-1',
+      opportunityId: 'opp-1',
+      runId: 'run-1',
       text: 'x',
       version: 1,
       status: 'approved',
     });
 
-    await insertPostingRecord(db, {
-      draftId: 'draft-comment',
-      outcome: 'published',
-      dryRun: false,
+    await insertDraftOutcome(db, {
+      draftId: 'draft-1',
+      outcome: 'ready-to-post',
+      detail: 'final approved text',
+      warning: 'thread may be stale',
     });
-    await insertPostingRecord(db, { draftId: 'draft-comment', outcome: 'dry-run', dryRun: true });
-    await insertPostingRecord(db, { draftId: 'draft-post', outcome: 'published', dryRun: false });
 
-    const sinceStart = Date.now() - 1000;
-    expect(await countRealPublishesSince(db, 'comment', sinceStart)).toBe(1);
-    expect(await countRealPublishesSince(db, 'post', sinceStart)).toBe(1);
-
-    const sinceFuture = Date.now() + 1000;
-    expect(await countRealPublishesSince(db, 'comment', sinceFuture)).toBe(0);
+    const row = await db.execute({
+      sql: 'SELECT outcome, detail, warning FROM draft_outcomes WHERE draft_id = ?',
+      args: ['draft-1'],
+    });
+    expect(row.rows[0]).toMatchObject({
+      outcome: 'ready-to-post',
+      detail: 'final approved text',
+      warning: 'thread may be stale',
+    });
   });
 
   it('round-trips a pending approval mapping', async () => {

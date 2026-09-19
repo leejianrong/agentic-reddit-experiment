@@ -20,7 +20,8 @@ async function runScanCycle(app: Awaited<ReturnType<typeof buildApp>>): Promise<
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  console.log(`agentic-reddit-experiment starting (DRY_RUN=${config.DRY_RUN})`);
+  const readSource = config.REDDIT_CLIENT_ID ? 'official Reddit API' : 'Redlib';
+  console.log(`agentic-reddit-experiment starting (Reddit reads via ${readSource})`);
 
   const app = await buildApp(config);
 

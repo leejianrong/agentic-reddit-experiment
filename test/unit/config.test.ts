@@ -1,29 +1,40 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../../src/config.js';
 
-const validEnv = {
-  REDDIT_CLIENT_ID: 'id',
-  REDDIT_CLIENT_SECRET: 'secret',
-  REDDIT_REFRESH_TOKEN: 'refresh',
-  REDDIT_USER_AGENT: 'agentic-reddit-experiment/0.0.0',
+const baseEnv = {
   TELEGRAM_BOT_TOKEN: 'bot-token',
   TELEGRAM_CHAT_ID: '12345',
   OPENROUTER_API_KEY: 'openrouter-key',
 };
 
 describe('loadConfig', () => {
-  it('defaults DRY_RUN to true when unset', () => {
-    const config = loadConfig({ ...validEnv });
-    expect(config.DRY_RUN).toBe(true);
+  it('succeeds with official Reddit OAuth credentials and no Redlib URL', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      REDDIT_CLIENT_ID: 'id',
+      REDDIT_CLIENT_SECRET: 'secret',
+      REDDIT_REFRESH_TOKEN: 'refresh',
+      REDDIT_USER_AGENT: 'test-agent/0.0.0',
+    });
+    expect(config.REDDIT_CLIENT_ID).toBe('id');
   });
 
-  it('only treats the literal string "false" as disabling DRY_RUN', () => {
-    const config = loadConfig({ ...validEnv, DRY_RUN: 'false' });
-    expect(config.DRY_RUN).toBe(false);
+  it('succeeds with only a Redlib URL and no Reddit OAuth credentials', () => {
+    const config = loadConfig({ ...baseEnv, REDLIB_URL: 'http://redlib:8080' });
+    expect(config.REDLIB_URL).toBe('http://redlib:8080');
+    expect(config.REDDIT_CLIENT_ID).toBeUndefined();
   });
 
-  it('throws when a required secret is missing', () => {
-    const { REDDIT_CLIENT_ID: _omit, ...incomplete } = validEnv;
-    expect(() => loadConfig({ ...incomplete })).toThrow();
+  it('throws when neither official Reddit credentials nor a Redlib URL are set', () => {
+    expect(() => loadConfig({ ...baseEnv })).toThrow();
+  });
+
+  it('throws when a Reddit OAuth credential is partially set without a Redlib fallback', () => {
+    expect(() => loadConfig({ ...baseEnv, REDDIT_CLIENT_ID: 'id' })).toThrow();
+  });
+
+  it('throws when a non-Reddit required secret is missing', () => {
+    const { TELEGRAM_BOT_TOKEN: _omit, ...incomplete } = baseEnv;
+    expect(() => loadConfig({ ...incomplete, REDLIB_URL: 'http://redlib:8080' })).toThrow();
   });
 });
