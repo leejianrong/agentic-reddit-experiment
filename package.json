@@ -1,0 +1,31 @@
+{
+  "name": "agentic-reddit-experiment",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A Mastra agent that finds genuine expert-presence opportunities in technical subreddits, drafts posts/comments, and publishes only what a human approves on Telegram.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "vitest run test/unit",
+    "test:integration": "vitest run test/integration",
+    "test:watch": "vitest",
+    "check": "npm run lint && npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "@mastra/core": "^1.67.0",
+    "zod": "^4.6.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
+    "@types/node": "^22.10.0",
+    "mastra": "^1.30.0",
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.1"
+  }
+}

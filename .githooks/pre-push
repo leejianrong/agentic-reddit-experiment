@@ -1,0 +1,4 @@
+#!/bin/sh
+# Fast gate mirroring CI's cheap jobs: lint + typecheck + no-infra unit tests.
+# Install once with: git config core.hooksPath .githooks
+npm run check
