@@ -13,6 +13,12 @@ const envSchema = z.object({
     .string()
     .default('true')
     .transform((value) => value !== 'false'),
+  ANTHROPIC_SCORING_MODEL: z.string().min(1).default('claude-haiku-4-5-20251001'),
+  ANTHROPIC_DRAFTING_MODEL: z.string().min(1).default('claude-sonnet-5'),
+  SCAN_INTERVAL_MINUTES: z.coerce.number().int().positive().default(30),
+  MAX_OPPORTUNITIES_PER_CYCLE: z.coerce.number().int().positive().default(3),
+  RATE_CAP_COMMENTS_PER_DAY: z.coerce.number().int().positive().default(3),
+  RATE_CAP_POST_EVERY_DAYS: z.coerce.number().int().positive().default(3),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;
