@@ -15,7 +15,9 @@
     "test": "vitest run test/unit",
     "test:integration": "vitest run test/integration",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run typecheck && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "reddit:authorize": "node --env-file=.env scripts/reddit-authorize.ts",
+    "reddit:smoke-test": "node --env-file=.env scripts/reddit-smoke-test.ts"
   },
   "dependencies": {
     "@mastra/core": "^1.67.0",
