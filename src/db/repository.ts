@@ -2,7 +2,7 @@ import type { Client } from '@libsql/client';
 
 export type OpportunityKind = 'comment' | 'post';
 export type DraftStatus = 'pending' | 'approved' | 'rejected';
-export type PublishOutcome = 'published' | 'dry-run' | 'skipped-stale' | 'rate-limited' | 'failed';
+export type DraftOutcome = 'ready-to-post' | 'rejected';
 
 export interface Opportunity {
   id: string;
@@ -23,12 +23,11 @@ export interface Draft {
   status: DraftStatus;
 }
 
-export interface PostingRecord {
+export interface DraftOutcomeRecord {
   draftId: string;
-  outcome: PublishOutcome;
-  dryRun: boolean;
-  redditFullname?: string;
+  outcome: DraftOutcome;
   detail?: string;
+  warning?: string;
 }
 
 export async function isSeen(db: Client, fullname: string): Promise<boolean> {
@@ -110,38 +109,19 @@ export async function updateDraft(
   });
 }
 
-export async function insertPostingRecord(db: Client, record: PostingRecord): Promise<void> {
+export async function insertDraftOutcome(db: Client, record: DraftOutcomeRecord): Promise<void> {
   await db.execute({
-    sql: `INSERT INTO posting_records (id, draft_id, outcome, dry_run, reddit_fullname, detail, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO draft_outcomes (id, draft_id, outcome, detail, warning, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)`,
     args: [
       crypto.randomUUID(),
       record.draftId,
       record.outcome,
-      record.dryRun ? 1 : 0,
-      record.redditFullname ?? null,
       record.detail ?? null,
+      record.warning ?? null,
       Date.now(),
     ],
   });
-}
-
-/** Counts real (non-dry-run) publishes of a kind since `sinceMs`, for rate-cap enforcement (ADR-0003). */
-export async function countRealPublishesSince(
-  db: Client,
-  kind: OpportunityKind,
-  sinceMs: number,
-): Promise<number> {
-  const result = await db.execute({
-    sql: `SELECT COUNT(*) as count
-          FROM posting_records pr
-          JOIN drafts d ON d.id = pr.draft_id
-          JOIN opportunities o ON o.id = d.opportunity_id
-          WHERE pr.outcome = 'published' AND pr.dry_run = 0 AND o.kind = ? AND pr.created_at >= ?`,
-    args: [kind, sinceMs],
-  });
-  const row = result.rows[0];
-  return row ? Number(row.count) : 0;
 }
 
 export async function savePendingApproval(

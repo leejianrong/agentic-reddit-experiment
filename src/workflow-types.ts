@@ -8,6 +8,7 @@ export interface DraftResumeResult {
   status: 'success' | 'suspended' | 'failed';
   outcome?: string;
   detail?: string;
+  warning?: string;
 }
 
 export interface ApprovalRequestPayload {

@@ -58,7 +58,7 @@ describe('TelegramApprovalAdapter', () => {
 
   it('resumes with approve on a callback query and edits the message', async () => {
     const client = fakeTelegramClient();
-    const resume = vi.fn().mockResolvedValue({ status: 'success', outcome: 'dry-run' });
+    const resume = vi.fn().mockResolvedValue({ status: 'success', outcome: 'ready-to-post' });
     const adapter = new TelegramApprovalAdapter(client, 'chat-1', db, resume);
 
     await adapter.sendApprovalRequest({
@@ -91,7 +91,7 @@ describe('TelegramApprovalAdapter', () => {
     expect(resume).toHaveBeenCalledWith('run-1', { action: 'approve' });
     expect(client.edits[0]?.text).toContain('✅ Approved');
     expect(await getPendingApproval(db, 100)).toBeNull();
-    expect(client.sent.some((m) => m.text.includes('Dry-run'))).toBe(true);
+    expect(client.sent.some((m) => m.text.includes('Ready'))).toBe(true);
   });
 
   it('treats a text reply to a tracked draft as an edit', async () => {

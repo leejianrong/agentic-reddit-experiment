@@ -12,11 +12,21 @@ import { RedditClient } from '../src/reddit/client.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
+  const { REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_REFRESH_TOKEN, REDDIT_USER_AGENT } =
+    config;
+  if (!REDDIT_CLIENT_ID || !REDDIT_CLIENT_SECRET || !REDDIT_REFRESH_TOKEN || !REDDIT_USER_AGENT) {
+    console.error(
+      'This script tests official Reddit OAuth credentials specifically — set ' +
+        'REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET/REDDIT_REFRESH_TOKEN/REDDIT_USER_AGENT in .env first.',
+    );
+    process.exitCode = 1;
+    return;
+  }
   const client = new RedditClient({
-    clientId: config.REDDIT_CLIENT_ID,
-    clientSecret: config.REDDIT_CLIENT_SECRET,
-    refreshToken: config.REDDIT_REFRESH_TOKEN,
-    userAgent: config.REDDIT_USER_AGENT,
+    clientId: REDDIT_CLIENT_ID,
+    clientSecret: REDDIT_CLIENT_SECRET,
+    refreshToken: REDDIT_REFRESH_TOKEN,
+    userAgent: REDDIT_USER_AGENT,
   });
 
   console.log('Listing new posts in r/test ...');

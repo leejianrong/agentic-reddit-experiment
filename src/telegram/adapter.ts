@@ -22,10 +22,7 @@ function sleep(ms: number): Promise<void> {
 export type ResumeFn = (runId: string, action: DraftResumeAction) => Promise<DraftResumeResult>;
 
 const outcomeLabels: Record<string, string> = {
-  published: '✅ Published',
-  'dry-run': '🧪 Dry-run — would have published',
-  'skipped-stale': '⏭️ Skipped — thread went stale',
-  'rate-limited': '🚦 Skipped — rate limit reached',
+  'ready-to-post': '✅ Ready — copy this to Reddit yourself:',
   rejected: '❌ Rejected',
   failed: '⚠️ Failed',
 };
@@ -126,8 +123,9 @@ export class TelegramApprovalAdapter implements DraftNotifier {
       return; // an edit round re-suspended and already sent its own new draft message
     }
     const label = result.outcome ? (outcomeLabels[result.outcome] ?? result.outcome) : 'Done';
-    const detail = result.detail ? `\n${result.detail}` : '';
-    await this.client.sendMessage(String(chatId), `${label}${detail}`);
+    const warning = result.warning ? `\n\n⚠️ ${result.warning}` : '';
+    const detail = result.detail ? `\n\n${result.detail}` : '';
+    await this.client.sendMessage(String(chatId), `${label}${detail}${warning}`);
   }
 }
 

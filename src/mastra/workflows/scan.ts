@@ -6,11 +6,11 @@ import type { SubredditConfig } from '../../config/subreddits.js';
 import { insertOpportunity, isSeen, markSeen } from '../../db/repository.js';
 import type { LlmClient } from '../../llm/client.js';
 import { scoreCandidate } from '../../llm/score.js';
-import type { RedditClient } from '../../reddit/client.js';
+import type { RedditReadClient } from '../../reddit/read-client.js';
 
 export interface ScanDeps {
   db: Client;
-  redditClient: RedditClient;
+  redditReadClient: RedditReadClient;
   llm: LlmClient;
   scoringModel: string;
   persona: string;
@@ -63,7 +63,7 @@ async function scanSubreddit(
     return 0;
   }
 
-  const posts = await deps.redditClient.listNew(subreddit.name, 10);
+  const posts = await deps.redditReadClient.listNew(subreddit.name, 10);
   let created = 0;
 
   for (const post of posts) {

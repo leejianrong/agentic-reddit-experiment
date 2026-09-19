@@ -1,6 +1,10 @@
 # ADR-0003: Post from the existing personal Reddit account, behind conservative safety guardrails
 
-- Status: Accepted
+- Status: **Superseded by [ADR-0010](0010-manual-publish.md)** for the
+  guardrail mechanisms below — the app no longer writes to Reddit at all, so
+  there's no automated publish path left to gate. The account choice itself
+  (existing personal account, not a dedicated one) still stands. Kept as the
+  historical record of why these mechanisms existed.
 - Date: 2026-09-19
 - Deciders: Jian
 

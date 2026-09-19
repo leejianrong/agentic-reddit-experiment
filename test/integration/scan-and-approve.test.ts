@@ -71,7 +71,7 @@ function fakeRedditFetch(): typeof fetch {
       return jsonResponse(200, { kind: 'Listing', data: { children: [] } });
     }
     if (url.includes('/api/comment')) {
-      throw new Error('submitComment must never be called while DRY_RUN=true');
+      throw new Error('submitComment must never be called — publishing is manual (ADR-0010)');
     }
     throw new Error(`Unexpected fetch in test: ${url}`);
   }) as unknown as typeof fetch;
@@ -123,22 +123,21 @@ async function setUpScannedApp(dbPath: string, draftText = DRAFT_TEXT) {
     TELEGRAM_CHAT_ID: 'chat-1',
     OPENROUTER_API_KEY: 'openrouter-key',
     DATABASE_URL: `file:${dbPath}`,
-    DRY_RUN: 'true',
   });
 
-  const redditClient = new RedditClient(
+  const redditReadClient = new RedditClient(
     {
-      clientId: config.REDDIT_CLIENT_ID,
-      clientSecret: config.REDDIT_CLIENT_SECRET,
-      refreshToken: config.REDDIT_REFRESH_TOKEN,
-      userAgent: config.REDDIT_USER_AGENT,
+      clientId: config.REDDIT_CLIENT_ID as string,
+      clientSecret: config.REDDIT_CLIENT_SECRET as string,
+      refreshToken: config.REDDIT_REFRESH_TOKEN as string,
+      userAgent: config.REDDIT_USER_AGENT as string,
     },
     fakeRedditFetch(),
   );
   const llm = fakeLlm(draftText);
   const telegramClient = fakeTelegramClient();
 
-  const app = await buildApp(config, { redditClient, llm, telegramClient });
+  const app = await buildApp(config, { redditReadClient, llm, telegramClient });
 
   const scanRun = await app.mastra.getWorkflow('scan-subreddits').createRun();
   const scanResult = await scanRun.start({ inputData: {} });
@@ -181,7 +180,7 @@ describe('scan -> draft -> Telegram approve -> dry-run publish', () => {
     await rm(`${dbPath}-shm`, { force: true });
   });
 
-  it('finds one opportunity, drafts it, and records a dry-run publish once approved', async () => {
+  it('finds one opportunity, drafts it, and hands off the final text once approved', async () => {
     const { app, telegramClient, runId } = await setUpScannedApp(dbPath);
 
     expect(telegramClient.sent).toHaveLength(1);
@@ -192,24 +191,22 @@ describe('scan -> draft -> Telegram approve -> dry-run publish', () => {
     ]);
     await app.telegramAdapter.pollOnce(0);
 
-    // R0 invariant: a dry-run outcome was recorded, and Reddit's write endpoint was never hit
-    // (fakeRedditFetch throws if /api/comment is called).
+    // R0 invariant: the app never calls Reddit's write endpoint (ADR-0010) —
+    // fakeRedditFetch throws if /api/comment is called — it only marks the
+    // draft ready and hands the final text back for the human to post.
     const draftRow = await app.appDb.execute('SELECT status FROM drafts');
     expect(draftRow.rows[0]).toMatchObject({ status: 'approved' });
 
-    const postingRow = await app.appDb.execute(
-      'SELECT outcome, dry_run, detail FROM posting_records',
-    );
-    expect(postingRow.rows[0]).toMatchObject({
-      outcome: 'dry-run',
-      dry_run: 1,
+    const outcomeRow = await app.appDb.execute('SELECT outcome, detail FROM draft_outcomes');
+    expect(outcomeRow.rows[0]).toMatchObject({
+      outcome: 'ready-to-post',
       detail: DRAFT_TEXT,
     });
 
-    expect(telegramClient.sent.some((m) => m.text.includes('Dry-run'))).toBe(true);
+    expect(telegramClient.sent.some((m) => m.text.includes('Ready'))).toBe(true);
   });
 
-  it('never publishes a rejected draft', async () => {
+  it('never hands off a rejected draft as ready to post', async () => {
     const { app, telegramClient, runId } = await setUpScannedApp(dbPath);
 
     vi.mocked(telegramClient.getUpdates).mockResolvedValueOnce([
@@ -220,8 +217,8 @@ describe('scan -> draft -> Telegram approve -> dry-run publish', () => {
     const draftRow = await app.appDb.execute('SELECT status FROM drafts');
     expect(draftRow.rows[0]).toMatchObject({ status: 'rejected' });
 
-    const postingRows = await app.appDb.execute('SELECT * FROM posting_records');
-    expect(postingRows.rows).toHaveLength(0);
+    const outcomeRows = await app.appDb.execute('SELECT outcome FROM draft_outcomes');
+    expect(outcomeRows.rows).toEqual([{ outcome: 'rejected' }]);
 
     expect(telegramClient.sent.some((m) => m.text.includes('Rejected'))).toBe(true);
   });

@@ -1,21 +1,11 @@
 import type { Client } from '@libsql/client';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
-import {
-  countRealPublishesSince,
-  insertDraft,
-  insertPostingRecord,
-  updateDraft,
-} from '../../db/repository.js';
+import { insertDraft, insertDraftOutcome, updateDraft } from '../../db/repository.js';
 import type { LlmClient } from '../../llm/client.js';
 import { draftContent, redraftContent } from '../../llm/draft.js';
-import type { RedditClient } from '../../reddit/client.js';
+import type { RedditReadClient } from '../../reddit/read-client.js';
 import type { DraftNotifier } from '../../workflow-types.js';
-
-export interface RateCaps {
-  commentsPerDay: number;
-  postsPerDays: number;
-}
 
 export interface DraftApprovalDeps {
   db: Client;
@@ -23,9 +13,7 @@ export interface DraftApprovalDeps {
   draftModel: string;
   persona: string;
   notifier: DraftNotifier;
-  redditClient: RedditClient;
-  dryRun: boolean;
-  rateCaps: RateCaps;
+  redditReadClient: RedditReadClient;
 }
 
 export const opportunityInputSchema = z.object({
@@ -59,8 +47,9 @@ const resumeSchema = z.discriminatedUnion('action', [
 ]);
 
 export const publishOutputSchema = z.object({
-  outcome: z.enum(['published', 'dry-run', 'rejected', 'skipped-stale', 'rate-limited']),
+  outcome: z.enum(['ready-to-post', 'rejected']),
   detail: z.string().optional(),
+  warning: z.string().optional(),
 });
 
 export function createDraftApprovalWorkflow(deps: DraftApprovalDeps) {
@@ -139,69 +128,38 @@ export function createDraftApprovalWorkflow(deps: DraftApprovalDeps) {
     },
   });
 
-  const publishStep = createStep({
-    id: 'publish',
+  // Named "finalize", not "publish": the app never calls Reddit's write API
+  // (ADR-0010) — this step just hands the approved text back for the human
+  // to paste into Reddit themselves, with a best-effort staleness warning.
+  const finalizeStep = createStep({
+    id: 'finalize',
     inputSchema: draftOutputSchema,
     outputSchema: publishOutputSchema,
     execute: async ({ inputData, getInitData }) => {
       if (!inputData.approved) {
+        await insertDraftOutcome(deps.db, { draftId: inputData.draftId, outcome: 'rejected' });
         return { outcome: 'rejected' as const };
       }
 
       const opportunity = getInitData<OpportunityInput>();
 
-      const threadState = await deps.redditClient.getThreadState(opportunity.fullname);
-      if (!threadState || threadState.locked) {
-        await insertPostingRecord(deps.db, {
-          draftId: inputData.draftId,
-          outcome: 'skipped-stale',
-          dryRun: deps.dryRun,
-        });
-        return { outcome: 'skipped-stale' as const, detail: 'Thread is gone or locked' };
+      let warning: string | undefined;
+      if (deps.redditReadClient.getThreadState) {
+        const threadState = await deps.redditReadClient
+          .getThreadState(opportunity.fullname)
+          .catch(() => null);
+        if (!threadState || threadState.locked) {
+          warning = 'Heads up: this thread may be gone or locked now — check before posting.';
+        }
       }
 
-      const isComment = opportunity.kind === 'comment';
-      const windowMs = (isComment ? 1 : deps.rateCaps.postsPerDays) * 24 * 60 * 60 * 1000;
-      const cap = isComment ? deps.rateCaps.commentsPerDay : 1;
-      const recentCount = await countRealPublishesSince(
-        deps.db,
-        opportunity.kind,
-        Date.now() - windowMs,
-      );
-      if (recentCount >= cap) {
-        await insertPostingRecord(deps.db, {
-          draftId: inputData.draftId,
-          outcome: 'rate-limited',
-          dryRun: deps.dryRun,
-        });
-        return { outcome: 'rate-limited' as const };
-      }
-
-      if (deps.dryRun) {
-        await insertPostingRecord(deps.db, {
-          draftId: inputData.draftId,
-          outcome: 'dry-run',
-          dryRun: true,
-          detail: inputData.text,
-        });
-        return { outcome: 'dry-run' as const, detail: inputData.text };
-      }
-
-      const result = isComment
-        ? await deps.redditClient.submitComment(opportunity.fullname, inputData.text)
-        : await deps.redditClient.submitPost(
-            opportunity.subreddit,
-            opportunity.title,
-            inputData.text,
-          );
-
-      await insertPostingRecord(deps.db, {
+      await insertDraftOutcome(deps.db, {
         draftId: inputData.draftId,
-        outcome: 'published',
-        dryRun: false,
-        redditFullname: result.name,
+        outcome: 'ready-to-post',
+        detail: inputData.text,
+        warning,
       });
-      return { outcome: 'published' as const, detail: result.name };
+      return { outcome: 'ready-to-post' as const, detail: inputData.text, warning };
     },
   });
 
@@ -211,6 +169,6 @@ export function createDraftApprovalWorkflow(deps: DraftApprovalDeps) {
     outputSchema: publishOutputSchema,
   })
     .then(draftStep)
-    .then(publishStep)
+    .then(finalizeStep)
     .commit();
 }
